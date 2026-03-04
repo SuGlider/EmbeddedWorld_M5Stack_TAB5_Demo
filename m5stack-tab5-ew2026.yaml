@@ -216,8 +216,18 @@ sensor:
             args: [ 'x' ]
 
   - platform: homeassistant
+    id: cur_pres
+    entity_id: sensor.bme668_pressure
+    on_value:
+      - lvgl.label.update:
+          id: pres_label
+          text:
+            format: "%.2f hPa"
+            args: [ 'x' ]
+            
+  - platform: homeassistant
     id: cur_co2
-    entity_id: sensor.bme668_co2
+    entity_id: sensor.espressif_zigbeescd41_carbon_dioxide
     on_value:
       - lvgl.label.update:
           id: co2_label
@@ -595,15 +605,6 @@ text_sensor:
     on_value:
       - lambda: id(sync_ha_palette)->execute(x);
 
-  - platform: homeassistant
-    id: iqa_text_value
-    entity_id: sensor.env_iv_kit_bme68x_iaq_classification
-    on_value:
-      - lvgl.label.update:
-          id: iaq_label
-          text:
-            format: "%s"
-            args: [ 'x.c_str()' ]
   
 ################################################################################
 
@@ -614,6 +615,7 @@ font:
     id: extra_icon
     size: 48
     bpp: 4
+    # https://pictogrammers.com/library/mdi/
     glyphs: [
       "\U000F050F", # mdi:thermometer
       "\U000F058E", # mdi:water-percent
@@ -634,7 +636,7 @@ font:
       "\U000F18DD", # mdi:ceiling-light-multiple
       "\U000F0425", # mdi:power
       "\U000F07E4", # mdi:CO2
-      "\U000F1B5A", # mdi:weather-dust (used to indicate the level of PM2.5)
+      "\U000F029A", # mdi:gauge (used to indicate air pressure in hPa)
       "\U000F05A9", # mdi:wifi
       "\U000F007A", # mdi:battery-10
       "\U000F007B", # mdi:battery-20
@@ -692,14 +694,6 @@ lvgl:
 
   byte_order: little_endian
   color_depth: 16
-  on_idle:
-    timeout: 30s
-    then:
-      - logger.log: "LVGL is idle"
-      - light.turn_off: 
-          id: backlight
-          transition_length: 15s
-      - lvgl.pause:
 
   style_definitions:
     - id: sidebar
@@ -1273,7 +1267,7 @@ lvgl:
                     - label:
                         id: temp_label
                         text_font: montserrat_32
-                        text: "-"
+                        text: "- °C"
                         grid_cell_column_pos: 1 
                         grid_cell_row_pos: 0 
                         grid_cell_x_align: START
@@ -1288,7 +1282,7 @@ lvgl:
                     - label:
                         text_font: montserrat_32
                         id: humi_label
-                        text: "-"
+                        text: "- %"
                         grid_cell_column_pos: 3 
                         grid_cell_row_pos: 0 
                         grid_cell_x_align: START
@@ -1310,15 +1304,15 @@ lvgl:
                         grid_cell_y_align: CENTER
                     - label:
                         text_font: extra_icon
-                        text: "\U000F1B5A"
+                        text: "\U000F029A"
                         grid_cell_column_pos: 2 
                         grid_cell_row_pos: 1 
                         grid_cell_x_align: CENTER
                         grid_cell_y_align: CENTER
                     - label:
                         text_font: montserrat_32
-                        id: iaq_label
-                        text: "-"
+                        id: pres_label
+                        text: "- hPa"
                         grid_cell_column_pos: 3 
                         grid_cell_row_pos: 1 
                         grid_cell_x_align: START
