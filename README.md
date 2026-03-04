@@ -12,4 +12,14 @@ https://esphome.io/guides/cli/
 
 https://esphome.io/guides/installing_esphome/
 
+-----------------------------------------
 
+# TAB5 screenshots:
+
+![Dashboard Screen](Screenshot-TAB5-1.jpg)
+
+![Lights Screen](Screenshot-TAB5-2.jpg)
+
+![Color picking Screen](Screenshot-TAB5-3.jpg)
+
+![Brightness Screen](Screenshot-TAB5-4.jpg)
