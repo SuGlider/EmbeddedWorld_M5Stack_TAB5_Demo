@@ -1,0 +1,21 @@
+# Replace sensor.m5stack_tab5_device_rgb_color ESPHome device name m5stack_tab5 with whatever you are using in your HA
+alias: ESPHome_HA_Color_Setting
+description: Listens for device RGB color changes and updates light.matter_rgb color
+triggers:
+  - entity_id: sensor.m5stack_tab5_device_rgb_color
+    trigger: state
+conditions:
+  - condition: template
+    value_template: >-
+      {{ ',' in states('sensor.m5stack_tab5_device_rgb_color') and
+      states('sensor.m5stack_tab5_device_rgb_color') not in ['unknown',
+      'unavailable', ''] }}
+actions:
+  - target:
+      entity_id: light.matter_rgb
+    data:
+      rgb_color: >-
+        {{ states('sensor.m5stack_tab5_device_rgb_color').split(',') |
+        map('int') | list }}
+    action: light.turn_on
+mode: single
