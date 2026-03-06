@@ -25,6 +25,10 @@ esp32_hosted:
 
 logger:
   hardware_uart: USB_SERIAL_JTAG
+  level: DEBUG
+  logs:
+    sensor: INFO
+    binary_sensor: INFO
 
 psram:
   mode: hex
@@ -251,7 +255,7 @@ sensor:
       
       float percent = ((voltage - min_voltage) / (max_voltage - min_voltage)) * 100.0;
       return percent;
-    update_interval: 10s
+    update_interval: 30s
     on_value:
       - lvgl.label.update:
           id: pwr_bat_icon_label
@@ -490,6 +494,36 @@ text_sensor:
                 snprintf(buf, sizeof(buf), "%s", icon.c_str());
                 return buf;
         - lvgl.label.update:
+            id: demo_rgb_light_status
+            text: !lambda |-
+                static char buf[10];
+                std::string text;
+                if ( x == "on" ) {
+                    text = "ON";
+                } 
+                else if ( x == "unavailable" ||  x == "unknown" ) {
+                    text = "UNKNOWN";
+                }
+                else {
+                    text = "OFF";
+                }
+                snprintf(buf, sizeof(buf), "%s", text.c_str());
+                return buf;
+
+  - platform: homeassistant
+    id: demo_flash_light
+    entity_id: light.matter_flashlight
+    on_value:
+      then:
+        - lvgl.widget.update:
+            id: demo_light_btn2
+            state:
+              checked: !lambda return x == "on";
+              disabled: !lambda return ( x == "unavailable" ) or ( x == "unknown" );
+        - lvgl.widget.update:
+            id: demo_light_click_area2
+            clickable: !lambda return !((x == "unavailable") || (x == "unknown"));
+        - lvgl.label.update:
             id: demo_flash_light_label
             text_color: !lambda |-
               if ( x == "on" ) {
@@ -506,22 +540,6 @@ text_sensor:
                     icon = "\U000F18DE";
                 }
                 snprintf(buf, sizeof(buf), "%s", icon.c_str());
-                return buf;
-        - lvgl.label.update:
-            id: demo_rgb_light_status
-            text: !lambda |-
-                static char buf[10];
-                std::string text;
-                if ( x == "on" ) {
-                    text = "ON";
-                } 
-                else if ( x == "unavailable" ||  x == "unknown" ) {
-                    text = "UNKNOWN";
-                }
-                else {
-                    text = "OFF";
-                }
-                snprintf(buf, sizeof(buf), "%s", text.c_str());
                 return buf;
         - lvgl.label.update:
             id: demo_flash_light_status
@@ -604,6 +622,15 @@ text_sensor:
     attribute: rgb_color
     on_value:
       - lambda: id(sync_ha_palette)->execute(x);
+
+  - platform: template
+    id: device_rgb_color
+    name: "Device RGB Color"
+    update_interval: never
+    lambda: |-
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%d,%d,%d", id(light_r), id(light_g), id(light_b));
+      return std::string(buf);
 
   
 ################################################################################
@@ -976,7 +1003,7 @@ lvgl:
                               int percent = int(x) * 100 / 255;
                               return std::to_string(percent) + " %";
                         - logger.log: 
-                            format: "Color Light Brightness: %d%%"
+                            format: ">>>>>>>>>>>>   Color Light Brightness: %d%%"
                             args: [int((x*100)/255)]
                   # Color palette 
                   - canvas:
@@ -1005,15 +1032,15 @@ lvgl:
                       on_click:
                         - lvgl.widget.show: color_palette_indicator
                         - script.execute: move_color_palette_indicator
-                        - homeassistant.action:
-                            action: script.set_rgb_light
-                            # The RGB values are from global variables
-                            # which comes from the indicator
-                            data:
-                              light_name: 'light.matter_rgb'
-                              red: !lambda return std::to_string(id(light_r));
-                              green: !lambda return std::to_string(id(light_g));
-                              blue: !lambda return std::to_string(id(light_b));
+                        - text_sensor.template.publish:
+                            id: device_rgb_color
+                            state: !lambda |-
+                              char buf[32];
+                              snprintf(buf, sizeof(buf), "%d,%d,%d", id(light_r), id(light_g), id(light_b));
+                              return std::string(buf);
+                        - logger.log: 
+                            format: "Clickable Color Light changed RGB: (%d, %d, %d)"
+                            args: [id(light_r), id(light_g), id(light_b)]
 
                   # Indicator, also make it draggable
                   - obj:
@@ -1031,16 +1058,15 @@ lvgl:
                       on_boot:
                         - script.execute: draw_color_palette_indicator
                       on_release:
-                        - homeassistant.action:
-                            action: script.set_rgb_light
-                            # The RGB values are from global variables
-                            # which comes from the indicator
-                            data:
-                              light_name: 'light.matter_rgb'
-                              red: !lambda return std::to_string(id(light_r));
-                              green: !lambda return std::to_string(id(light_g));
-                              blue: !lambda return std::to_string(id(light_b));
- 
+                        - text_sensor.template.publish:
+                            id: device_rgb_color
+                            state: !lambda |-
+                              char buf[32];
+                              snprintf(buf, sizeof(buf), "%d,%d,%d", id(light_r), id(light_g), id(light_b));
+                              return std::string(buf);
+                        - logger.log: 
+                            format: "Draggable Color Light changed RGB: (%d, %d, %d)"
+                            args: [id(light_r), id(light_g), id(light_b)]
                       
                   # Button group
                   - obj:
@@ -1770,6 +1796,8 @@ script:
       color_str: string
     then:
       - lambda: |-
+          ESP_LOGI("sync_ha_palette", "received: %s", color_str.c_str());
+          
           if (color_str.empty() || color_str == "None" 
               || color_str == "null" || color_str == "unknown" 
               || color_str == "unavailable" ) {
